@@ -1,0 +1,12 @@
+{
+  "domain": "stundenplan",
+  "name": "Stundenplan",
+  "version": "0.1.0",
+  "documentation": "https://github.com/mark77-DE/ha-stundenplan",
+  "issue_tracker": "https://github.com/mark77-DE/ha-stundenplan/issues",
+  "codeowners": [
+    "@mark77-DE"
+  ],
+  "config_flow": false,
+  "iot_class": "local_push"
+}
