@@ -5,6 +5,24 @@ from datetime import date, datetime, timedelta
 from .models import DaySchedule, Schedule
 
 
+def _get_day_blocks(
+    schedule: Schedule,
+    day: str,
+) -> list[tuple[str, DaySchedule]]:
+    """Return all blocks for a day, sorted by start time."""
+    day_blocks = [
+        (block.id, block.days[day])
+        for block in schedule.blocks
+        if day in block.days
+    ]
+
+    day_blocks.sort(key=lambda item: item[1].start)
+
+    return day_blocks
+
+
+
+
 def get_current_lesson(
     schedule: Schedule,
     current: datetime,
@@ -13,14 +31,9 @@ def get_current_lesson(
     day = current.strftime("%A").lower()
     current_time = current.time()
 
-    for block in schedule.blocks:
-        day_schedule = block.days.get(day)
-
-        if day_schedule is None:
-            continue
-
+    for block_id, day_schedule in _get_day_blocks(schedule, day):
         if day_schedule.start <= current_time < day_schedule.end:
-            return block.id, day_schedule
+            return block_id, day_schedule
 
     return None
 
@@ -34,16 +47,10 @@ def get_next_lesson(
         target_date = current.date() + timedelta(days=day_offset)
         day = target_date.strftime("%A").lower()
 
-        for block in schedule.blocks:
-            day_schedule = block.days.get(day)
-
-            if day_schedule is None:
-                continue
-
+        for block_id, day_schedule in _get_day_blocks(schedule, day):
             if day_offset == 0 and day_schedule.start < current.time():
                 continue
 
-            return target_date, block.id, day_schedule
+            return target_date, block_id, day_schedule
 
     return None
-    

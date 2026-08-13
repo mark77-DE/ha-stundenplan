@@ -383,4 +383,49 @@ def test_next_lesson_at_block_end() -> None:
 
     assert lesson_date == datetime(2026, 8, 11).date()
     assert block_id == "8"
-    assert lesson.subject == "WiPo"    
+    assert lesson.subject == "WiPo"
+
+    
+def test_next_lesson_works_with_unsorted_blocks() -> None:
+    """The next lesson must not depend on block order."""
+    schedule = create_paulina_schedule()
+
+    # Deliberately scramble the block order.
+    schedule.blocks.reverse()
+
+    result = get_next_lesson(
+        schedule,
+        datetime(2026, 8, 11, 13, 30),
+    )
+
+    assert result is not None
+
+    lesson_date, block_id, lesson = result
+
+    assert lesson_date == datetime(2026, 8, 11).date()
+    assert block_id == "7"
+    assert lesson.subject == "WiPo"
+    assert lesson.start == time(13, 40)
+    assert lesson.end == time(14, 20)
+
+
+def test_current_lesson_works_with_unsorted_blocks() -> None:
+    """The current lesson must not depend on block order."""
+    schedule = create_paulina_schedule()
+
+    # Deliberately scramble the block order.
+    schedule.blocks.reverse()
+
+    result = get_current_lesson(
+        schedule,
+        datetime(2026, 8, 11, 14, 0),
+    )
+
+    assert result is not None
+
+    block_id, lesson = result
+
+    assert block_id == "7"
+    assert lesson.subject == "WiPo"
+    assert lesson.start == time(13, 40)
+    assert lesson.end == time(14, 20)    
