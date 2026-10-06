@@ -5,12 +5,15 @@ from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.util import dt as dt_util
 
 from .models import Person
 from .person import (
     get_current_lesson_for_person,
     get_next_lesson_for_person,
 )
+
+
 
 
 class StundenplanSensor(SensorEntity):
@@ -27,11 +30,12 @@ class StundenplanSensor(SensorEntity):
 
         self._attr_unique_id = f"stundenplan_{person.id}"
         self._attr_name = f"Stundenplan {person.name}"
+        self._current_time = dt_util.now()
 
     @property
     def native_value(self) -> str:
         """Return the current subject."""
-        current = datetime.now()
+        current = self._current_time
 
         lesson = get_current_lesson_for_person(
             self._person,
@@ -48,7 +52,7 @@ class StundenplanSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return schedule information as attributes."""
-        current = datetime.now()
+        current = self._current_time
 
         attributes = {
             "person_id": self._person.id,
@@ -113,4 +117,5 @@ class StundenplanSensor(SensorEntity):
         now: datetime,
     ) -> None:
         """Update the sensor when the time changes."""
+        self._current_time = now
         self.async_write_ha_state()

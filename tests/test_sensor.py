@@ -12,6 +12,7 @@ from custom_components.stundenplan.const import DOMAIN
 from tests.fixtures import create_complete_new_config
 
 
+
 async def test_sensor_created_for_each_person(
     hass: HomeAssistant,
 ) -> None:
