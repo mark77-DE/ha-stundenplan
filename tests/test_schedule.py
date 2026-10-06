@@ -1,6 +1,14 @@
 """Tests for the Stundenplan schedule engine."""
 
-from datetime import datetime, time
+import pytest
+
+from datetime import date, datetime, time
+
+from tests.fixtures import (
+    create_complete_new_config,
+    create_paulina_new_config,
+    create_johanna_new_config,
+)
 
 from custom_components.stundenplan.parser import (
     parse_legacy_schedule,
@@ -24,6 +32,12 @@ from custom_components.stundenplan.schedule import (
 from custom_components.stundenplan.person import (
     get_current_lesson_for_person,
     get_next_lesson_for_person,
+)
+
+from custom_components.stundenplan.config import (
+    create_schedule_manager,
+    create_schedule_manager_from_config,
+    load_schedule_manager_from_yaml,
 )
 
 def create_johanna_legacy_data() -> list[dict]:
@@ -1695,3 +1709,1027 @@ def test_schedule_manager_can_check_person_existence() -> None:
 
     assert manager.has_person("paulina")
     assert not manager.has_person("johanna")    
+    
+    
+def test_create_schedule_manager_from_configuration() -> None:
+    """A schedule manager can be created from configuration data."""
+    manager = create_schedule_manager(
+        [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": create_paulina_legacy_data(),
+            },
+            {
+                "id": "johanna",
+                "name": "Johanna",
+                "schedule": create_johanna_legacy_data(),
+            },
+        ]
+    )
+
+    assert manager.has_person("paulina")
+    assert manager.has_person("johanna")
+
+    paulina = manager.get_person("paulina")
+    johanna = manager.get_person("johanna")
+
+    assert paulina is not None
+    assert johanna is not None
+
+    assert paulina.name == "Paulina"
+    assert johanna.name == "Johanna"
+
+    assert len(paulina.schedule.blocks) == 9
+    assert len(johanna.schedule.blocks) == 9    
+    
+    
+def test_create_schedule_manager_from_new_configuration() -> None:
+    """A schedule manager can be created from the new configuration format."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "WP1",
+                        },
+                        "tuesday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    manager = create_schedule_manager_from_config(config)
+
+    assert manager.has_person("paulina")
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+    assert person.name == "Paulina"
+
+    monday = person.schedule.blocks[0].days["monday"]
+
+    assert monday.start == time(7, 40)
+    assert monday.end == time(8, 20)
+    assert monday.subject == "WP1"    
+    
+    
+def test_new_configuration_supports_days_without_lessons() -> None:
+    """A block can exist only on selected days."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "7": {
+                        "tuesday": {
+                            "start": "13:40",
+                            "end": "14:20",
+                            "subject": "WiPo",
+                        },
+                        "friday": {
+                            "start": "13:20",
+                            "end": "14:00",
+                            "subject": "WP2",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    manager = create_schedule_manager_from_config(config)
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+
+    block = person.schedule.blocks[0]
+
+    assert block.id == "7"
+    assert "tuesday" in block.days
+    assert "friday" in block.days
+    assert "monday" not in block.days
+    assert "wednesday" not in block.days
+    assert "thursday" not in block.days
+
+    assert block.days["tuesday"].subject == "WiPo"
+    assert block.days["friday"].subject == "WP2"    
+    
+    
+def test_new_configuration_treats_special_block_as_normal_block() -> None:
+    """Special blocks such as HT are handled like normal schedule blocks."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "HT": {
+                        "monday": {
+                            "start": "09:10",
+                            "end": "09:50",
+                            "subject": "HT",
+                        },
+                        "wednesday": {
+                            "start": "09:10",
+                            "end": "09:50",
+                            "subject": "KR",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    manager = create_schedule_manager_from_config(config)
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+
+    block = person.schedule.blocks[0]
+
+    assert block.id == "HT"
+    assert block.days["monday"].subject == "HT"
+    assert block.days["wednesday"].subject == "KR"    
+    
+def test_new_configuration_rejects_invalid_time() -> None:
+    """Invalid time values are rejected."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "not-a-time",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)    
+        
+
+def test_new_configuration_rejects_invalid_time_range() -> None:
+    """A lesson must end after it starts."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "08:20",
+                            "end": "07:40",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)
+
+
+def test_new_configuration_rejects_zero_length_lesson() -> None:
+    """A lesson cannot have identical start and end times."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "08:20",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)
+
+        
+        
+        
+def test_new_configuration_rejects_duplicate_person_ids() -> None:
+    """Duplicate person IDs are rejected."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            },
+            {
+                "id": "paulina",
+                "name": "Another Person",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Deutsch",
+                        },
+                    },
+                },
+            },
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)        
+        
+        
+def test_new_configuration_rejects_empty_person_id() -> None:
+    """An empty person ID is rejected."""
+    config = {
+        "persons": [
+            {
+                "id": "",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)
+
+
+def test_new_configuration_rejects_empty_block_id() -> None:
+    """An empty block ID is rejected."""
+    config = {
+        "persons": [
+            {
+                "id": "paulina",
+                "name": "Paulina",
+                "schedule": {
+                    "": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)        
+        
+ 
+
+   
+    
+
+
+def test_paulina_new_configuration_matches_schedule() -> None:
+    """Paulina's complete new configuration is parsed correctly."""
+    manager = create_schedule_manager_from_config(
+        create_paulina_new_config()
+    )
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+    assert person.name == "Paulina"
+
+    assert len(person.schedule.blocks) == 9
+
+    tuesday = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 11, 13, 50),
+    )
+
+    assert tuesday is not None
+
+    block_id, lesson = tuesday
+
+    assert block_id == "7"
+    assert lesson.subject == "WiPo"
+    assert lesson.start == time(13, 40)
+    assert lesson.end == time(14, 20)
+
+    friday = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 14, 13, 30),
+    )
+
+    assert friday is not None
+
+    block_id, lesson = friday
+
+    assert block_id == "7"
+    assert lesson.subject == "WP2"
+    assert lesson.start == time(13, 20)
+    assert lesson.end == time(14, 0)    
+    
+    
+def test_johanna_new_configuration_matches_schedule() -> None:
+    """Johanna's complete new configuration is parsed correctly."""
+    manager = create_schedule_manager_from_config(
+        create_johanna_new_config()
+    )
+
+    person = manager.get_person("johanna")
+
+    assert person is not None
+    assert person.name == "Johanna"
+    assert len(person.schedule.blocks) == 9
+
+    monday = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 10, 9, 20),
+    )
+
+    assert monday is not None
+
+    block_id, lesson = monday
+
+    assert block_id == "HT"
+    assert lesson.subject == "BeOr"
+    assert lesson.start == time(9, 10)
+    assert lesson.end == time(9, 50)
+
+    tuesday = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 11, 9, 20),
+    )
+
+    assert tuesday is not None
+
+    block_id, lesson = tuesday
+
+    assert block_id == "HT"
+    assert lesson.subject == "HT"
+
+    friday = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 14, 12, 45),
+    )
+
+    assert friday is not None
+
+    block_id, lesson = friday
+
+    assert block_id == "6"
+    assert lesson.subject == "Kunst/DSp."    
+    
+    
+    
+def test_complete_new_configuration_contains_all_persons() -> None:
+    """The complete configuration contains all configured persons."""
+    manager = create_schedule_manager_from_config(
+        create_complete_new_config()
+    )
+
+    assert manager.has_person("paulina")
+    assert manager.has_person("johanna")
+
+    paulina = manager.get_person("paulina")
+    johanna = manager.get_person("johanna")
+
+    assert paulina is not None
+    assert johanna is not None
+
+    assert paulina.name == "Paulina"
+    assert johanna.name == "Johanna"
+
+    assert len(paulina.schedule.blocks) == 9
+    assert len(johanna.schedule.blocks) == 9    
+    
+    
+    
+def test_load_complete_configuration_from_yaml() -> None:
+    """The complete schedule configuration can be loaded from YAML."""
+    manager = load_schedule_manager_from_yaml(
+        "tests/data/schedules.yaml"
+    )
+
+    assert manager.has_person("paulina")
+    assert manager.has_person("johanna")
+
+    paulina = manager.get_person("paulina")
+    johanna = manager.get_person("johanna")
+
+    assert paulina is not None
+    assert johanna is not None
+
+    assert paulina.name == "Paulina"
+    assert johanna.name == "Johanna"
+
+    assert len(paulina.schedule.blocks) == 9
+    assert len(johanna.schedule.blocks) == 9    
+    
+    
+    
+def test_yaml_configuration_matches_python_configuration() -> None:
+    """YAML and Python configuration produce the same schedules."""
+    yaml_manager = load_schedule_manager_from_yaml(
+        "tests/data/schedules.yaml"
+    )
+
+    python_manager = create_schedule_manager_from_config(
+        {
+            "persons": [
+                *create_paulina_new_config()["persons"],
+                *create_johanna_new_config()["persons"],
+            ]
+        }
+    )
+
+    for person_id in ("paulina", "johanna"):
+        yaml_person = yaml_manager.get_person(person_id)
+        python_person = python_manager.get_person(person_id)
+
+        assert yaml_person is not None
+        assert python_person is not None
+
+        assert yaml_person.id == python_person.id
+        assert yaml_person.name == python_person.name
+
+        assert yaml_person.schedule.blocks == python_person.schedule.blocks    
+        
+        
+        
+def test_yaml_configuration_rejects_empty_person_id() -> None:
+    """YAML configuration must reject an empty person ID."""
+    config = {
+        "persons": [
+            {
+                "id": "",
+                "name": "Paulina",
+                "schedule": {
+                    "1": {
+                        "monday": {
+                            "start": "07:40",
+                            "end": "08:20",
+                            "subject": "Mathe",
+                        },
+                    },
+                },
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        create_schedule_manager_from_config(config)        
+        
+        
+        
+def test_yaml_configuration_rejects_empty_person_id(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject an empty person ID."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: ""
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+def test_yaml_configuration_rejects_invalid_time_range(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a lesson ending before it starts."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "08:20"
+          end: "07:40"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+def test_yaml_configuration_rejects_zero_length_lesson(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject identical start and end times."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "08:20"
+          end: "08:20"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+def test_yaml_configuration_rejects_duplicate_person_ids(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject duplicate person IDs."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+
+  - id: paulina
+    name: Paulina 2
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Deutsch"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+def test_yaml_configuration_rejects_empty_block_id(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject an empty block ID."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+def test_yaml_configuration_rejects_missing_persons(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a missing persons section."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+something_else:
+  - test
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)        
+        
+        
+        
+        
+def test_yaml_configuration_rejects_invalid_persons_type(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a non-list persons section."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  paulina:
+    name: Paulina
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+
+def test_yaml_configuration_rejects_invalid_person_entry(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a non-dictionary person entry."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - paulina
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+def test_yaml_configuration_rejects_missing_person_id(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a person without an ID."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+
+def test_yaml_configuration_rejects_missing_person_name(
+    tmp_path,
+) -> None:
+    """YAML configuration must reject a person without a name."""
+    yaml_file = tmp_path / "invalid.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_schedule_manager_from_yaml(yaml_file)
+
+
+def test_complete_yaml_configuration_preserves_schedule_structure(
+    tmp_path,
+) -> None:
+    """The complete YAML configuration preserves all schedule details."""
+    yaml_file = tmp_path / "stundenplan.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "WP1"
+        tuesday:
+          start: "07:40"
+          end: "08:20"
+          subject: "Mathe"
+      "HT":
+        monday:
+          start: "09:10"
+          end: "09:50"
+          subject: "HT"
+        wednesday:
+          start: "09:10"
+          end: "09:50"
+          subject: "KR"
+      "7":
+        tuesday:
+          start: "13:40"
+          end: "14:20"
+          subject: "WiPo"
+
+  - id: johanna
+    name: Johanna
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "SpanA"
+      "5":
+        thursday:
+          start: "11:50"
+          end: "12:30"
+          subject: "frei"
+      "8":
+        monday:
+          start: "14:00"
+          end: "14:40"
+          subject: "SpoP"
+""",
+        encoding="utf-8",
+    )
+
+    manager = load_schedule_manager_from_yaml(yaml_file)
+
+    assert manager.has_person("paulina")
+    assert manager.has_person("johanna")
+
+    paulina = manager.get_person("paulina")
+    johanna = manager.get_person("johanna")
+
+    assert paulina.name == "Paulina"
+    assert johanna.name == "Johanna"
+
+    assert len(paulina.schedule.blocks) == 3
+    assert len(johanna.schedule.blocks) == 3
+
+    paulina_ht = next(
+        block
+        for block in paulina.schedule.blocks
+        if block.id == "HT"
+    )
+
+    assert paulina_ht.days["monday"].subject == "HT"
+    assert paulina_ht.days["wednesday"].subject == "KR"
+
+    paulina_7 = next(
+        block
+        for block in paulina.schedule.blocks
+        if block.id == "7"
+    )
+
+    assert set(paulina_7.days) == {"tuesday"}
+    assert paulina_7.days["tuesday"].start == time(13, 40)
+
+    johanna_5 = next(
+        block
+        for block in johanna.schedule.blocks
+        if block.id == "5"
+    )
+
+    assert johanna_5.days["thursday"].subject == "frei"
+
+
+
+def test_current_lesson_works_with_new_configuration() -> None:
+    """Current lesson lookup works with the new configuration format."""
+    manager = create_schedule_manager_from_config(
+        create_paulina_new_config()
+    )
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+
+    result = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 11, 13, 50),
+    )
+
+    assert result is not None
+
+    block_id, lesson = result
+
+    assert block_id == "7"
+    assert lesson.subject == "WiPo"
+    assert lesson.start == time(13, 40)
+    assert lesson.end == time(14, 20)
+
+
+def test_next_lesson_works_with_new_configuration() -> None:
+    """Next lesson lookup works with the new configuration format."""
+    manager = create_schedule_manager_from_config(
+        create_paulina_new_config()
+    )
+
+    person = manager.get_person("paulina")
+
+    assert person is not None
+
+    result = get_next_lesson(
+        person.schedule,
+        datetime(2026, 8, 11, 13, 30),
+    )
+
+    assert result is not None
+
+    lesson_date, block_id, lesson = result
+
+    assert lesson_date == date(2026, 8, 11)
+    assert block_id == "7"
+    assert lesson.subject == "WiPo"
+    assert lesson.start == time(13, 40)
+    assert lesson.end == time(14, 20)
+
+
+
+
+
+def test_free_lesson_works_with_new_configuration() -> None:
+    """A lesson with subject 'frei' is treated as a normal lesson."""
+    manager = create_schedule_manager_from_config(
+        create_johanna_new_config()
+    )
+
+    person = manager.get_person("johanna")
+
+    assert person is not None
+
+    result = get_current_lesson(
+        person.schedule,
+        datetime(2026, 8, 13, 12, 0),
+    )
+
+    assert result is not None
+
+    block_id, lesson = result
+
+    assert block_id == "5"
+    assert lesson.subject == "frei"
+    assert lesson.start == time(11, 50)
+    assert lesson.end == time(12, 30)
+
+
+
+def test_next_free_lesson_works_with_new_configuration() -> None:
+    """A free lesson is returned normally by next lesson lookup."""
+    manager = create_schedule_manager_from_config(
+        create_johanna_new_config()
+    )
+
+    person = manager.get_person("johanna")
+
+    assert person is not None
+
+    result = get_next_lesson(
+        person.schedule,
+        datetime(2026, 8, 13, 11, 30),
+    )
+
+    assert result is not None
+
+    lesson_date, block_id, lesson = result
+
+    assert lesson_date == date(2026, 8, 13)
+    assert block_id == "5"
+    assert lesson.subject == "frei"
+    assert lesson.start == time(11, 50)
+    assert lesson.end == time(12, 30)
+
+
+def test_yaml_configuration_loads_multiple_persons(
+    tmp_path,
+) -> None:
+    """A YAML configuration can contain multiple persons."""
+    yaml_file = tmp_path / "stundenplan.yaml"
+
+    yaml_file.write_text(
+        """
+persons:
+  - id: paulina
+    name: Paulina
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "WP1"
+      "HT":
+        monday:
+          start: "09:10"
+          end: "09:50"
+          subject: "HT"
+
+  - id: johanna
+    name: Johanna
+    schedule:
+      "1":
+        monday:
+          start: "07:40"
+          end: "08:20"
+          subject: "SpanA"
+      "5":
+        thursday:
+          start: "11:50"
+          end: "12:30"
+          subject: "frei"
+""",
+        encoding="utf-8",
+    )
+
+    manager = load_schedule_manager_from_yaml(yaml_file)
+
+    assert manager.has_person("paulina")
+    assert manager.has_person("johanna")
+
+    paulina = manager.get_person("paulina")
+    johanna = manager.get_person("johanna")
+
+    assert paulina is not None
+    assert johanna is not None
+
+    assert paulina.name == "Paulina"
+    assert johanna.name == "Johanna"
+
+    assert len(paulina.schedule.blocks) == 2
+    assert len(johanna.schedule.blocks) == 2
+
+    assert paulina.schedule.blocks[1].id == "HT"
+    assert johanna.schedule.blocks[1].id == "5"
+    assert johanna.schedule.blocks[1].days["thursday"].subject == "frei"
+
+
+
+    

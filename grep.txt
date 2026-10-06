@@ -1,0 +1,42 @@
+(ha-stundenplan) mark@tablet-hh:/mnt/c/Users/mark/Nextcloud/Entwicklung/ha-stundenplan$ grep -R "async def hass\|def hass" -n .
+./.venv/Lib/site-packages/homeassistant/components/crownstone/light.py:57:def hass_to_crownstone_state(value: int) -> int:
+./.venv/Lib/site-packages/homeassistant/components/emulated_hue/hue_api.py:920:def hass_to_hue_brightness(value: int) -> int:
+./.venv/Lib/site-packages/homeassistant/components/homeassistant/triggers/homeassistant.py:51:    def hass_started(_: Event) -> None:
+./.venv/Lib/site-packages/homeassistant/components/hue/v1/light.py:312:def hass_to_hue_brightness(value):
+./.venv/Lib/site-packages/homeassistant/components/keba/__init__.py:163:    def hass_callback(self, data):
+./.venv/Lib/site-packages/homeassistant/components/melissa/climate.py:203:    def hass_mode_to_melissa(self, mode):
+./.venv/Lib/site-packages/homeassistant/components/melissa/climate.py:216:    def hass_fan_to_melissa(self, fan):
+./.venv/Lib/site-packages/homeassistant/components/unifiprotect/light.py:50:def hass_to_unifi_brightness(value: int) -> int:
+./.venv/Lib/site-packages/homeassistant/components/wilight/cover.py:52:def hass_to_wilight_position(value: int) -> int:
+./.venv/Lib/site-packages/homeassistant/components/wilight/light.py:118:def hass_to_wilight_hue(value: float) -> int:
+./.venv/Lib/site-packages/homeassistant/components/wilight/light.py:128:def hass_to_wilight_saturation(value: float) -> int:
+./.venv/Lib/site-packages/homeassistant/components/wilight/switch.py:139:def hass_to_wilight_pause_time(value: int) -> int:
+./.venv/Lib/site-packages/homeassistant/components/zha/config_flow.py:158:    def hass(self) -> HomeAssistant:
+./.venv/Lib/site-packages/homeassistant/components/zha/config_flow.py:163:    def hass(self, hass: HomeAssistant) -> None:
+./.venv/Lib/site-packages/homeassistant/helpers/collection.py:256:    def hass(self) -> HomeAssistant:
+./.venv/Lib/site-packages/homeassistant/helpers/restore_state.py:138:        def hass_start(hass: HomeAssistant) -> None:
+./.venv/Lib/site-packages/homeassistant/helpers/template/extensions/base.py:121:    def hass(self) -> HomeAssistant:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:506:def hass_storage() -> Generator[dict[str, Any]]:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:618:def hass_fixture_setup() -> list[bool]:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:624:def hass_tmp_config_dir(tmp_path: pathlib.Path) -> str:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:631:    def hass_config_dir(hass_tmp_config_dir: str) -> str:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:645:def hass_config_dir() -> str:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:655:async def hass(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:792:async def hass_admin_credential(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:806:async def hass_access_token(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:819:def hass_owner_user(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:827:async def hass_admin_user(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:836:async def hass_read_only_user(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:845:async def hass_read_only_access_token(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:867:async def hass_supervisor_user(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:878:async def hass_supervisor_access_token(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:900:def hass_client(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:918:def hass_client_no_auth(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:957:def hass_ws_client(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:1212:def hass_config() -> ConfigType:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:1236:def hass_config_yaml() -> str:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:1247:def hass_config_yaml_files(hass_config_yaml: str) -> dict[str, str]:
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:2043:def hassio_env(
+./.venv/Lib/site-packages/pytest_homeassistant_custom_component/plugins.py:2060:async def hassio_stubs(
+grep: ./.venv/Lib/site-packages/pytest_homeassistant_custom_component/__pycache__/plugins.cpython-314-pytest-9.0.3.pyc: binary file matches
+grep: ./.venv/Lib/site-packages/pytest_homeassistant_custom_component/__pycache__/plugins.cpython-314.pyc: binary file matches
