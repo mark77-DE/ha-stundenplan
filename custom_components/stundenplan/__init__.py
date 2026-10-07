@@ -6,7 +6,7 @@ from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_component import EntityComponent
 
-from .config import create_schedule_manager_from_config
+from .config import load_schedule_manager_from_yaml
 from .const import DOMAIN
 from .sensor import StundenplanSensor
 
@@ -19,7 +19,9 @@ async def async_setup(
     if DOMAIN not in config:
         return True
 
-    manager = create_schedule_manager_from_config(config[DOMAIN])
+    manager = load_schedule_manager_from_yaml(
+        hass.config.path("schedules.yaml")
+    )
     hass.data[DOMAIN] = manager
 
     component = EntityComponent(

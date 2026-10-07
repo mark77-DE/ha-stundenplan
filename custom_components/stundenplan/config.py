@@ -171,4 +171,7 @@ def load_schedule_manager_from_yaml(
     with Path(path).open(encoding="utf-8") as file:
         config = yaml.safe_load(file)
 
-    return create_schedule_manager_from_config(config)    
+    if not isinstance(config, dict):
+        raise ValueError("YAML configuration must be a dictionary.")
+
+    return create_schedule_manager_from_config(config)

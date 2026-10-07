@@ -1,6 +1,7 @@
 """Tests for the Stundenplan sensor platform."""
 
 from datetime import datetime
+from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 
@@ -9,7 +10,14 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.stundenplan import async_setup
 from custom_components.stundenplan.const import DOMAIN
-from tests.fixtures import create_complete_new_config
+
+
+def _prepare_schedules_file(hass: HomeAssistant) -> None:
+    """Copy the sample schedule into Home Assistant's config directory."""
+    source = Path(__file__).parent / "data" / "schedules.yaml"
+    target = Path(hass.config.path("schedules.yaml"))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
 
 
@@ -17,9 +25,8 @@ async def test_sensor_created_for_each_person(
     hass: HomeAssistant,
 ) -> None:
     """Create one sensor for each configured person."""
-    config = {
-        DOMAIN: create_complete_new_config(),
-    }
+    _prepare_schedules_file(hass)
+    config = {DOMAIN: {}}
 
     result = await async_setup(hass, config)
 
@@ -45,9 +52,8 @@ async def test_sensor_shows_current_lesson(
         datetime(2026, 8, 18, 9, 10)
     )
 
-    config = {
-        DOMAIN: create_complete_new_config(),
-    }
+    _prepare_schedules_file(hass)
+    config = {DOMAIN: {}}
 
     await async_setup(hass, config)
 
@@ -77,9 +83,8 @@ async def test_sensor_shows_free_outside_lessons(
         datetime(2026, 8, 18, 7, 30)
     )
 
-    config = {
-        DOMAIN: create_complete_new_config(),
-    }
+    _prepare_schedules_file(hass)
+    config = {DOMAIN: {}}
 
     await async_setup(hass, config)
 
@@ -98,9 +103,8 @@ async def test_sensor_contains_next_lesson(
         datetime(2026, 8, 18, 7, 30)
     )
 
-    config = {
-        DOMAIN: create_complete_new_config(),
-    }
+    _prepare_schedules_file(hass)
+    config = {DOMAIN: {}}
 
     await async_setup(hass, config)
 
@@ -113,7 +117,7 @@ async def test_sensor_contains_next_lesson(
     assert state.attributes["next_date"] == "2026-08-18"
     assert state.attributes["next_start"] == "07:40:00"
     assert state.attributes["next_end"] == "08:20:00"
-    
+
     
     
 
@@ -126,9 +130,8 @@ async def test_sensor_updates_when_lesson_changes(
         datetime(2026, 8, 18, 9, 5)
     )
 
-    config = {
-        DOMAIN: create_complete_new_config(),
-    }
+    _prepare_schedules_file(hass)
+    config = {DOMAIN: {}}
 
     await async_setup(hass, config)
 
@@ -155,4 +158,4 @@ async def test_sensor_updates_when_lesson_changes(
 
 
 
-    
+
