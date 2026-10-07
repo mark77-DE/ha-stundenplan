@@ -39,3 +39,6 @@ async def test_async_setup_with_configuration(
 
     assert manager.has_person("paulina")
     assert manager.has_person("johanna")
+
+    assert hass.states.get("calendar.stundenplan_paulina") is not None
+    assert hass.states.get("calendar.stundenplan_johanna") is not None
