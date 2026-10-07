@@ -21,8 +21,9 @@ async def async_setup(
     if DOMAIN not in config:
         return True
 
-    manager = load_schedule_manager_from_yaml(
-        hass.config.path("schedules.yaml")
+    manager = await hass.async_add_executor_job(
+        load_schedule_manager_from_yaml,
+        hass.config.path("schedules.yaml"),
     )
     hass.data[DOMAIN] = manager
 
