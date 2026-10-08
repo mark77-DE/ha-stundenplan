@@ -15,7 +15,7 @@ stundenplan: {}
 ```
 
 Create `schedules.yaml` next to `configuration.yaml` (that is, at
-`/config/schedules.yaml`). For example:
+`/config/schedules.yaml`). Examplefile <a href="./tests/data/scedule.yaml">here</a> or follow example:
 
 ```yaml
 persons:
