@@ -1,6 +1,6 @@
 """Sensor platform for the Stundenplan integration."""
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
@@ -12,6 +12,28 @@ from .person import (
     get_current_lesson_for_person,
     get_next_lesson_for_person,
 )
+
+
+def _lessons_for_day(person: Person, day: date) -> list[dict[str, str]]:
+    """Return all lessons for a day, ordered by start time."""
+    weekday = day.strftime("%A").lower()
+    lessons = []
+
+    for block in person.schedule.blocks:
+        lesson = block.days.get(weekday)
+        if lesson is None:
+            continue
+
+        lessons.append(
+            {
+                "block": block.id,
+                "subject": lesson.subject,
+                "start": lesson.start.isoformat(timespec="minutes"),
+                "end": lesson.end.isoformat(timespec="minutes"),
+            }
+        )
+
+    return sorted(lessons, key=lambda lesson: lesson["start"])
 
 
 
@@ -57,6 +79,13 @@ class StundenplanSensor(SensorEntity):
         attributes = {
             "person_id": self._person.id,
             "person_name": self._person.name,
+            "today_date": current.date().isoformat(),
+            "today_lessons": _lessons_for_day(self._person, current.date()),
+            "tomorrow_date": (current.date() + timedelta(days=1)).isoformat(),
+            "tomorrow_lessons": _lessons_for_day(
+                self._person,
+                current.date() + timedelta(days=1),
+            ),
         }
 
         current_lesson = get_current_lesson_for_person(

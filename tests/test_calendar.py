@@ -13,7 +13,7 @@ from custom_components.stundenplan.config import (
 async def test_calendar_returns_lessons_in_requested_range(hass) -> None:
     """Return all configured lessons in chronological order."""
     manager = load_schedule_manager_from_yaml("tests/data/schedules.yaml")
-    person = manager.get_person("paulina")
+    person = manager.get_person("student_a")
     assert person is not None
 
     calendar = StundenplanCalendar(person)
@@ -24,9 +24,9 @@ async def test_calendar_returns_lessons_in_requested_range(hass) -> None:
     events = await calendar.async_get_events(hass, start, end)
 
     assert [event.summary for event in events] == [
-        "Mathe",
-        "Mathe",
-        "KR",
+        "Subject A",
+        "Subject A",
+        "Subject AB",
     ]
     assert events[0].start == datetime(
         2026, 10, 7, 7, 40, tzinfo=timezone
@@ -34,13 +34,13 @@ async def test_calendar_returns_lessons_in_requested_range(hass) -> None:
     assert events[0].end == datetime(
         2026, 10, 7, 8, 20, tzinfo=timezone
     )
-    assert events[0].uid == "paulina-2026-10-07-1"
+    assert events[0].uid == "student_a-2026-10-07-1"
 
 
 async def test_calendar_event_is_next_upcoming_lesson(hass, freezer) -> None:
     """Expose the next lesson as the calendar entity's current event."""
     manager = load_schedule_manager_from_yaml("tests/data/schedules.yaml")
-    person = manager.get_person("paulina")
+    person = manager.get_person("student_a")
     assert person is not None
 
     timezone = dt_util.DEFAULT_TIME_ZONE
@@ -51,7 +51,7 @@ async def test_calendar_event_is_next_upcoming_lesson(hass, freezer) -> None:
     event = calendar.event
 
     assert event is not None
-    assert event.summary == "Mathe"
+    assert event.summary == "Subject A"
     assert event.start == datetime(
         2026, 10, 7, 7, 40, tzinfo=timezone
     )

@@ -37,8 +37,8 @@ async def test_async_setup_with_configuration(
 
     manager = hass.data[DOMAIN]
 
-    assert manager.has_person("paulina")
-    assert manager.has_person("johanna")
+    assert manager.has_person("student_a")
+    assert manager.has_person("student_b")
 
-    assert hass.states.get("calendar.stundenplan_paulina") is not None
-    assert hass.states.get("calendar.stundenplan_johanna") is not None
+    assert hass.states.get("calendar.stundenplan_student_a") is not None
+    assert hass.states.get("calendar.stundenplan_student_b") is not None
