@@ -36,6 +36,90 @@ def _lessons_for_day(person: Person, day: date) -> list[dict[str, str]]:
     return sorted(lessons, key=lambda lesson: lesson["start"])
 
 
+def _week_schedule(
+    person: Person,
+    day: date,
+) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    """Return weekday lessons and a shared time grid for the current week."""
+    monday = day - timedelta(days=day.weekday())
+    days = [
+        {
+            "date": (monday + timedelta(days=offset)).isoformat(),
+            "weekday": (monday + timedelta(days=offset)).strftime("%A").lower(),
+            "lessons": _lessons_for_day(person, monday + timedelta(days=offset)),
+        }
+        for offset in range(5)
+    ]
+
+    boundaries = sorted(
+        {
+            boundary
+            for week_day in days
+            for lesson in week_day["lessons"]
+            for boundary in (lesson["start"], lesson["end"])
+        }
+    )
+    slots = [
+        {"start": start, "end": end}
+        for start, end in zip(boundaries, boundaries[1:])
+        if any(
+            lesson["start"] <= start and end <= lesson["end"]
+            for week_day in days
+            for lesson in week_day["lessons"]
+        )
+    ]
+
+    for week_day in days:
+        subjects = [
+            next(
+                (
+                    lesson["subject"]
+                    for lesson in week_day["lessons"]
+                    if lesson["start"] <= slot["start"]
+                    and slot["end"] <= lesson["end"]
+                ),
+                None,
+            )
+            for slot in slots
+        ]
+        cells = []
+        slot_index = 0
+        while slot_index < len(slots):
+            subject = subjects[slot_index]
+            if subject is None:
+                cells.append({"subject": "", "rowspan": 1})
+                slot_index += 1
+                continue
+
+            group_end = slot_index + 1
+            while (
+                group_end < len(slots)
+                and subjects[group_end] == subject
+                and slots[group_end - 1]["end"] == slots[group_end]["start"]
+            ):
+                group_end += 1
+
+            cells.append({"subject": subject, "rowspan": group_end - slot_index})
+            cells.extend([None] * (group_end - slot_index - 1))
+            slot_index = group_end
+
+        week_day["grid_cells"] = cells
+
+    return days, slots
+
+
+def _week_focus_date(current: datetime) -> date:
+    """Return today until 17:00, then the next weekday (Monday-Friday)."""
+    focus = current.date()
+    if focus.weekday() >= 5:
+        return focus + timedelta(days=7 - focus.weekday())
+    if current.hour >= 17:
+        focus += timedelta(days=1)
+        if focus.weekday() >= 5:
+            focus += timedelta(days=7 - focus.weekday())
+    return focus
+
+
 
 
 class StundenplanSensor(SensorEntity):
@@ -75,10 +159,21 @@ class StundenplanSensor(SensorEntity):
     def extra_state_attributes(self) -> dict:
         """Return schedule information as attributes."""
         current = self._current_time
+        focus_date = _week_focus_date(current)
+        week_lessons, week_time_slots = _week_schedule(
+            self._person,
+            focus_date,
+        )
 
         attributes = {
             "person_id": self._person.id,
             "person_name": self._person.name,
+            "week_focus_date": focus_date.isoformat(),
+            "week_start": (
+                focus_date - timedelta(days=focus_date.weekday())
+            ).isoformat(),
+            "week_lessons": week_lessons,
+            "week_time_slots": week_time_slots,
             "today_date": current.date().isoformat(),
             "today_lessons": _lessons_for_day(self._person, current.date()),
             "tomorrow_date": (current.date() + timedelta(days=1)).isoformat(),
